@@ -1,2 +1,2 @@
 # SYNC_BEAT
-# Founder & Front-End Developer : Mahim Umbedkar
+ Founder & Front-End Developer : Mahim Umbedkar
