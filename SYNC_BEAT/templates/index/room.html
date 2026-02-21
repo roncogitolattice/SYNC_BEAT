@@ -1,0 +1,566 @@
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Sync Beat Room</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+        <script src="{{ url_for('static', filename='js/sync.js') }}"></script>
+        <style>
+            :root {
+                --bg-color: #000000;
+                --sidebar-bg: #000000;
+                --border-color: #27272a;
+                --text-primary: #ffffff;
+                --text-secondary: #a1a1aa;
+                --accent-green: #22c55e;
+                --accent-green-dark: #15803d;
+                --accent-orange: #f59e0b;
+                --hover-bg: #18181b;
+                --input-bg: #18181b;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: 'Inter', sans-serif;
+            }
+
+            body {
+                background-color: var(--bg-color);
+                color: var(--text-primary);
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+
+            /* --- Header --- */
+            header {
+                height: 48px;
+                border-bottom: 1px solid var(--border-color);
+                display: flex;
+                align-items: center;
+                padding: 0 16px;
+                font-size: 13px;
+                color: var(--text-secondary);
+                justify-content: space-between;
+            }
+
+            .header-left {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+            }
+
+            .brand {
+                color: var(--text-primary);
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            
+            .brand i { color: var(--accent-green); }
+
+            .stat-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            
+            .stat-green { color: var(--accent-green); }
+
+            .header-right {
+                display: flex;
+                gap: 12px;
+                font-size: 16px;
+            }
+
+            /* --- Main Layout --- */
+            .app-container {
+                display: flex;
+                flex: 1;
+                height: calc(100vh - 48px - 80px); /* Subtract header and player */
+            }
+
+            /* --- Left Sidebar --- */
+            .sidebar-left {
+                width: 320px;
+                border-right: 1px solid var(--border-color);
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                gap: 24px;
+            }
+
+            .section-header {
+                color: var(--text-secondary);
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 0.05em;
+                margin-bottom: 12px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .room-header {
+                font-size: 16px;
+                font-weight: 600;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                color: var(--text-primary);
+            }
+
+            .toggle-group {
+                background-color: var(--input-bg);
+                border-radius: 20px; /* Pill shape */
+                padding: 4px;
+                display: flex;
+            }
+
+            .toggle-btn {
+                flex: 1;
+                background: none;
+                border: none;
+                color: var(--text-secondary);
+                padding: 6px 0;
+                font-size: 12px;
+                cursor: pointer;
+                border-radius: 16px;
+                transition: all 0.2s;
+            }
+
+            .toggle-btn.active.admin {
+                background-color: var(--accent-orange);
+                color: #000;
+                font-weight: 600;
+            }
+            
+            .toggle-btn.active.everyone {
+                background-color: #3f3f46;
+                color: #fff;
+            }
+
+            .user-list-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 12px;
+                background-color: var(--hover-bg);
+                border-radius: 8px;
+                margin-bottom: 8px;
+            }
+
+            .user-info {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            .user-avatar {
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                background: #fff; /* Placeholder for flag */
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+            }
+
+            .you-badge {
+                background-color: var(--accent-green);
+                color: #000;
+                font-size: 10px;
+                font-weight: 700;
+                padding: 2px 6px;
+                border-radius: 4px;
+            }
+
+            .tips-section {
+                font-size: 12px;
+                color: var(--text-secondary);
+                line-height: 1.5;
+            }
+            .tips-section ul {
+                list-style: none;
+                padding-left: 10px;
+            }
+            .tips-section li::before {
+                content: "•";
+                color: var(--text-secondary);
+                display: inline-block;
+                width: 1em;
+                margin-left: -1em;
+            }
+
+            .upload-card {
+                background-color: var(--input-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                padding: 16px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                cursor: pointer;
+            }
+
+            .upload-icon {
+                width: 32px;
+                height: 32px;
+                background-color: var(--accent-green);
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #000;
+            }
+
+            /* --- Center Content --- */
+            .main-content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                background-color: var(--bg-color);
+                position: relative;
+            }
+
+            .search-container {
+                padding: 16px;
+            }
+
+            .search-bar {
+                background-color: var(--input-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 10px 16px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                color: var(--text-secondary);
+            }
+
+            .search-bar input {
+                background: none;
+                border: none;
+                outline: none;
+                color: var(--text-primary);
+                width: 100%;
+                font-size: 14px;
+            }
+            
+            .kbd-shortcut {
+                background: #27272a;
+                border-radius: 4px;
+                padding: 2px 6px;
+                font-size: 10px;
+            }
+
+            /* --- YouTube Browser Box --- */
+            .browser-container {
+                flex: 1;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+                background: radial-gradient(circle at center, #1a1a1a 0%, #000000 70%);
+            }
+
+            .youtube-box {
+                width: 100%;
+                max-width: 800px;
+                aspect-ratio: 16 / 9;
+                background-color: #000;
+                border-radius: 12px;
+                border: 1px solid var(--border-color);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                overflow: hidden;
+                position: relative;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .browser-header {
+                background-color: #18181b;
+                padding: 8px 16px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .browser-dots {
+                display: flex;
+                gap: 6px;
+            }
+            .dot { width: 10px; height: 10px; border-radius: 50%; }
+            .dot.red { background-color: #ef4444; }
+            .dot.yellow { background-color: #f59e0b; }
+            .dot.green { background-color: #22c55e; }
+
+            .browser-address {
+                flex: 1;
+                background-color: #000;
+                border-radius: 4px;
+                margin-left: 12px;
+                padding: 4px 12px;
+                font-size: 11px;
+                color: #4b5563;
+                text-align: center;
+                font-family: monospace;
+            }
+
+            .youtube-frame {
+                width: 100%;
+                height: 100%;
+                border: none;
+            }
+
+            /* --- Right Sidebar --- */
+            .sidebar-right {
+                width: 320px;
+                border-left: 1px solid var(--border-color);
+                display: flex;
+                flex-direction: column;
+            }
+
+            .tabs {
+                display: flex;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .tab {
+                flex: 1;
+                padding: 12px;
+                text-align: center;
+                font-size: 13px;
+                color: var(--text-secondary);
+                cursor: pointer;
+                border-bottom: 2px solid transparent;
+            }
+
+            .tab.active {
+                color: var(--text-primary);
+                border-bottom-color: var(--text-primary);
+            }
+
+            .chat-area {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                color: var(--text-secondary);
+            }
+
+            .chat-input-area {
+                padding: 16px;
+                border-top: 1px solid var(--border-color);
+            }
+
+            .chat-input {
+                width: 100%;
+                background-color: var(--input-bg);
+                border: 1px solid var(--border-color);
+                padding: 10px 16px;
+                border-radius: 20px;
+                color: var(--text-primary);
+                outline: none;
+            }
+
+            /* --- Player Controls (Bottom) --- */
+            .player-bar {
+                height: 80px;
+                border-top: 1px solid var(--border-color);
+                background-color: var(--bg-color);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 24px;
+                position: relative;
+            }
+            
+            .player-center {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                width: 40%;
+                gap: 8px;
+            }
+
+            .control-buttons {
+                display: flex;
+                align-items: center;
+                gap: 24px;
+            }
+
+            .control-btn {
+                background: none;
+                border: none;
+                color: var(--text-secondary);
+                font-size: 16px;
+                cursor: pointer;
+                transition: color 0.2s;
+            }
+
+            .control-btn:hover { color: var(--text-primary); }
+            .control-btn.active { color: var(--accent-green); }
+
+            .play-btn {
+                width: 32px;
+                height: 32px;
+                background-color: var(--text-primary);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: black;
+                font-size: 14px;
+            }
+
+            .volume-control {
+                margin-left: auto;
+                width: 100px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: var(--text-secondary);
+            }
+            
+            .volume-slider {
+                flex: 1;
+                height: 4px;
+                background-color: var(--text-primary);
+                border-radius: 2px;
+            }
+
+        </style>
+    </head>
+    <body>
+
+        <!-- Top Header -->
+        <header>
+            <div class="header-left">
+                <div class="stat-item"># {{ room_code }}</div>
+                <div class="stat-item"><i class="fa-solid fa-user"></i> 1 user</div>
+                <span style="border-left: 1px solid #333; height: 16px; margin: 0 8px;"></span>
+                <div class="stat-item">Offset: 12.57ms</div>
+            </div>
+        </header>
+
+        <div class="app-container">
+            <!-- Left Sidebar -->
+            <aside class="sidebar-left">
+                <div>
+                    <div class="room-header">
+                        <span># Room {{room_code}}</span>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="section-header">
+                        <i class="fa-solid fa-play"></i> PLAYBACK PERMISSIONS
+                    </div>
+                    <div class="toggle-group">
+                        <button class="toggle-btn active admin">
+                            <i class="fa-solid fa-crown"></i> Admins
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="section-header">
+                        <span><i class="fa-solid fa-users"></i> CONNECTED USERS</span>
+                        <i class="fa-solid fa-filter"></i>
+                    </div>
+                    <div class="user-list-item">
+                        <div class="user-info">
+                            <span>User-I</span>
+                        </div>
+                        <span class="you-badge">You[admin]</span>
+                    </div>
+                </div>
+
+                <div class="tips-section">
+                    <strong>Tip</strong>
+                    <ul>
+                        <li>Don't make too much loud otherwise server will get crash.</li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- Main Content (YouTube Browser Box) -->
+            <main class="main-content">
+                <!-- Search Bar (Top) -->
+                <div class="search-container">
+                    <div class="search-bar">
+                        <i class="fa-brands fa-youtube" style="color: red;"></i>
+                        <input type="text" placeholder="Paste YouTube link or search video...">
+                        <span class="kbd-shortcut">↵ Enter</span>
+                    </div>
+                </div>
+
+                <!-- YouTube Browser Frame -->
+                <div class="browser-container">
+                    <div class="youtube-box">
+                        <!-- Browser-like Header (Optional decoration) -->
+                        <div class="browser-header">
+                            <div class="browser-dots">
+                                <div class="dot red"></div>
+                                <div class="dot yellow"></div>
+                                <div class="dot green"></div>
+                            </div>
+                            <div class="browser-address">youtube.com/watch?v=jfKfPfyJRdk</div>
+                        </div>
+                        
+                        <!-- The Actual YouTube Iframe -->
+                        <iframe 
+                            class="youtube-frame" 
+                            src="https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=0&controls=1&rel=0" 
+                            title="YouTube video player" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowfullscreen>
+                        </iframe>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Sidebar (Chat) -->
+            <aside class="sidebar-right">
+                <div class="tabs">
+                    <div class="tab active"><i class="fa-regular fa-message"></i> Chat</div>
+                </div>
+                
+                <div class="chat-area">
+                    <i class="fa-regular fa-comment" style="font-size: 48px; margin-bottom: 16px; opacity: 0.2;"></i>
+                    <div style="font-weight: 600;">No messages yet</div>
+                    <div style="font-size: 12px;">Start the conversation</div>
+                </div>
+
+                <div class="chat-input-area">
+                    <input type="text" class="chat-input" placeholder="Message">
+                </div>
+            </aside>
+        </div>
+
+        <!-- Bottom Player Bar -->
+        <div class="player-bar">
+            <div class="player-center">
+                <div class="control-buttons">
+                    <button class="control-btn"><i class="fa-solid fa-backward-step"></i></button>
+                    <button class="play-btn"><i class="fa-solid fa-play"></i></button>
+                    <button class="control-btn"><i class="fa-solid fa-forward-step"></i></button>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
